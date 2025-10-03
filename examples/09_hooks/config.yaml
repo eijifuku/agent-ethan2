@@ -1,0 +1,70 @@
+meta:
+  version: 2
+  name: hooks-example
+  description: Example demonstrating component lifecycle hooks.
+
+runtime:
+  engine: lc.lcel
+  graph_name: hooks_demo
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.09_hooks.factories.provider_factory
+    components:
+      llm_with_hooks: examples.09_hooks.factories.llm_with_hooks_factory
+      cached: examples.09_hooks.factories.cached_component_factory
+  exporters:
+    - type: console
+      color: true
+      verbose: false
+      filter_events:
+        - graph.start
+        - graph.complete
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+
+components:
+  # LLM with logging hooks
+  - id: llm_hooked
+    type: llm_with_hooks
+    provider: openai
+    inputs:
+      prompt: graph.inputs.prompt
+    outputs:
+      response: $.choices[0].text
+      metadata: $._metadata
+    config: {}
+
+  # Cached component with hooks
+  - id: processor
+    type: cached
+    inputs:
+      value: graph.inputs.value
+    outputs:
+      result: $.result
+      length: $.length
+    config: {}
+
+graph:
+  entry: process_llm
+  nodes:
+    # LLM with hooks
+    - id: process_llm
+      type: component
+      component: llm_hooked
+
+  outputs:
+    - key: response
+      node: process_llm
+      output: response
+    - key: metadata
+      node: process_llm
+      output: metadata
+
+policies: {}
+

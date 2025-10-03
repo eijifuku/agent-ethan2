@@ -1,0 +1,82 @@
+meta:
+  version: 2
+  name: map-parallel-example
+  description: Example demonstrating map and parallel execution patterns.
+
+runtime:
+  engine: lc.lcel
+  graph_name: map_parallel_example
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.04_map_parallel.factories.provider_factory
+    components:
+      llm: examples.04_map_parallel.factories.llm_component_factory
+      map: examples.04_map_parallel.factories.map_component_factory
+  exporters:
+    - type: jsonl
+      path: run.jsonl
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+      # API key is read from OPENAI_API_KEY environment variable
+
+components:
+  # Map component: process each item
+  - id: item_processor
+    type: map
+    inputs:
+      item: map.item
+    outputs:
+      processed: $.processed
+      length: $.length
+      original: $.original
+    config:
+      collection: graph.inputs.items
+      failure_mode: collect_errors
+      ordered: true
+      result_key: results
+
+  # LLM component: summarize results
+  - id: summarizer
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.summary_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.3
+      max_output_tokens: 300
+
+graph:
+  entry: process_items
+  nodes:
+    # Step 1: Map over items
+    - id: process_items
+      type: map
+      component: item_processor
+      next: summarize
+
+    # Step 2: Summarize results
+    - id: summarize
+      type: llm
+      component: summarizer
+
+  outputs:
+    - key: results
+      node: process_items
+      output: results
+    - key: errors
+      node: process_items
+      output: errors
+    - key: summary
+      node: summarize
+      output: text
+
+policies: {}
+

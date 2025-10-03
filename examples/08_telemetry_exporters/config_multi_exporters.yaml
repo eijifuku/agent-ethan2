@@ -1,0 +1,75 @@
+meta:
+  version: 2
+  name: multi-exporters-example
+  description: Example with multiple telemetry exporters configured in YAML.
+
+runtime:
+  engine: lc.lcel
+  graph_name: multi_exporters_demo
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.01_basic_llm.factories.provider_factory
+    components:
+      llm: examples.01_basic_llm.factories.component_factory
+  
+  # Multiple exporters configured in YAML
+  exporters:
+    # JSONL for detailed logging
+    - type: jsonl
+      path: telemetry.jsonl
+    
+    # Console for real-time monitoring (colored, compact)
+    - type: console
+      color: true
+      verbose: false
+      filter_events:
+        - graph.start
+        - graph.complete
+        - node.start
+        - node.complete
+        - error.raised
+    
+    # LangSmith for tracing (optional, requires LANGSMITH_API_KEY)
+    - type: langsmith
+      project_name: agent-ethan2-demo
+      # api_key is read from LANGSMITH_API_KEY environment variable
+      # endpoint: https://api.smith.langchain.com  # optional
+    
+    # Prometheus for metrics (optional)
+    - type: prometheus
+      port: 9090
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+
+components:
+  - id: llm_basic
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_prompt
+    outputs:
+      final_response: $.choices[0].text
+    config:
+      temperature: 0.7
+      max_output_tokens: 300
+
+graph:
+  entry: ask_llm
+  nodes:
+    - id: ask_llm
+      type: llm
+      component: llm_basic
+  
+  outputs:
+    - key: final_response
+      node: ask_llm
+      output: final_response
+
+policies: {}
+

@@ -1,0 +1,52 @@
+meta:
+  version: 2
+  name: hooks-error-example
+  description: Example demonstrating on_error hook.
+
+runtime:
+  engine: lc.lcel
+  graph_name: hooks_error_demo
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.09_hooks.factories.error_provider_factory
+    components:
+      llm_with_hooks: examples.09_hooks.factories.llm_with_hooks_factory
+  exporters:
+    - type: console
+      color: true
+      verbose: false
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+      # Intentionally invalid API key to trigger error
+      api_key: "invalid-key-for-testing"
+
+components:
+  - id: llm_hooked
+    type: llm_with_hooks
+    provider: openai
+    inputs:
+      prompt: graph.inputs.prompt
+    outputs:
+      response: $.choices[0].text
+    config: {}
+
+graph:
+  entry: process_llm
+  nodes:
+    - id: process_llm
+      type: component
+      component: llm_hooked
+
+  outputs:
+    - key: response
+      node: process_llm
+      output: response
+
+policies: {}
+

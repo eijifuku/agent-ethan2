@@ -1,0 +1,100 @@
+meta:
+  version: 2
+  name: retry-ratelimit-example
+  description: Example demonstrating retry policies and rate limiting.
+
+runtime:
+  engine: lc.lcel
+  graph_name: retry_ratelimit_example
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.05_retry_ratelimit.factories.provider_factory
+    components:
+      llm: examples.05_retry_ratelimit.factories.llm_component_factory
+      flaky: examples.05_retry_ratelimit.factories.flaky_component_factory
+  exporters:
+    - type: jsonl
+      path: run.jsonl
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+      # API key is read from OPENAI_API_KEY environment variable
+
+components:
+  # Flaky component that fails randomly
+  - id: flaky_processor
+    type: flaky
+    inputs:
+      message: graph.inputs.message
+    outputs:
+      result: $.result
+      status: $.status
+    config:
+      failure_rate: 0.6  # 60% chance of failure
+
+  # LLM component for summary
+  - id: summarizer
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.summary_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.3
+      max_output_tokens: 200
+
+graph:
+  entry: process_flaky
+  nodes:
+    # Step 1: Process with flaky component (will retry on failure)
+    - id: process_flaky
+      type: component
+      component: flaky_processor
+      next: summarize_result
+
+    # Step 2: Summarize result
+    - id: summarize_result
+      type: llm
+      component: summarizer
+
+  outputs:
+    - key: flaky_result
+      node: process_flaky
+      output: result
+    - key: flaky_status
+      node: process_flaky
+      output: status
+    - key: summary
+      node: summarize_result
+      output: text
+
+policies:
+  retry:
+    default:
+      max_attempts: 2
+      backoff: exponential
+    overrides:
+      - target: process_flaky
+        max_attempts: 5
+        backoff: exponential
+  
+  rate_limit:
+    shared_providers:
+      openai: llm
+    providers:
+      - target: llm
+        type: token_bucket
+        capacity: 5
+        refill_rate: 10.0
+    nodes:
+      - target: process_flaky
+        type: token_bucket
+        capacity: 3
+        refill_rate: 5.0
+

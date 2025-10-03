@@ -1,0 +1,48 @@
+meta:
+  version: 2
+  name: basic-llm
+  description: Simple single-node LLM example for AgentEthan2.
+
+runtime:
+  engine: lc.lcel
+  graph_name: basic_llm_run
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.01_basic_llm.factories.provider_factory
+    components:
+      llm: examples.01_basic_llm.factories.component_factory
+  exporters:
+    - type: jsonl
+      path: run.jsonl
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+      # api_key is read from OPENAI_API_KEY environment variable in the factory
+
+components:
+  - id: llm_basic
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.2
+      max_output_tokens: 256
+
+graph:
+  entry: ask_llm
+  nodes:
+    - id: ask_llm
+      type: llm
+      component: llm_basic
+  outputs:
+    - key: final_response
+      node: ask_llm
+      output: text

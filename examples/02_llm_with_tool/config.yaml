@@ -1,0 +1,88 @@
+meta:
+  version: 2
+  name: llm-with-tool
+  description: Example demonstrating LLM calling a calculator tool and using the result.
+
+runtime:
+  engine: lc.lcel
+  graph_name: llm_tool_example
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.02_llm_with_tool.factories.provider_factory
+    tools:
+      calculator: examples.02_llm_with_tool.components.tools.calculator_tool_factory
+    components:
+      llm: examples.02_llm_with_tool.factories.llm_component_factory
+      tool: examples.02_llm_with_tool.factories.tool_component_factory
+  exporters:
+    - type: jsonl
+      path: run.jsonl
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+      # API key is read from OPENAI_API_KEY environment variable
+
+tools:
+  - id: calc
+    type: calculator
+    provider: openai
+    config: {}
+
+components:
+  # Tool call: perform calculation (using inputs from graph)
+  - id: calc_component
+    type: tool
+    tool: calc
+    inputs:
+      operation: graph.inputs.operation
+      a: graph.inputs.a
+      b: graph.inputs.b
+    outputs:
+      result: $.result
+      expression: $.expression
+    config: {}
+
+  # LLM call: format the calculation result
+  - id: llm_format
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.format_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.3
+      max_output_tokens: 150
+
+graph:
+  entry: calculate
+  nodes:
+    # Step 1: Perform calculation
+    - id: calculate
+      type: tool
+      component: calc_component
+      next: format_result
+
+    # Step 2: Format result with LLM
+    - id: format_result
+      type: llm
+      component: llm_format
+
+  outputs:
+    - key: calculation
+      node: calculate
+      output: expression
+    - key: result
+      node: calculate
+      output: result
+    - key: final_response
+      node: format_result
+      output: text
+
+policies: {}
+

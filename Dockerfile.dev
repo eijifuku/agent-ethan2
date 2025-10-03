@@ -1,0 +1,38 @@
+# Development Dockerfile with testing and development tools
+FROM python:3.10-slim
+
+# Set working directory
+WORKDIR /app
+
+# Set environment variables
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Install system dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+    git \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install pip and setuptools
+RUN pip install --upgrade pip setuptools wheel
+
+# Copy pyproject.toml and install dependencies (NOT editable mode)
+COPY pyproject.toml ./
+RUN pip install pyyaml>=6.0 jsonschema>=4.18 langchain-core>=0.2.0 langchain-openai>=0.1.0 openai>=1.0.0 && \
+    pip install pytest>=7.4 pytest-asyncio>=0.21 mypy>=1.7 ruff>=0.1
+
+# Create a non-root user
+RUN useradd -m -u 1000 appuser && \
+    chown -R appuser:appuser /app
+
+USER appuser
+
+# Set PYTHONPATH to use mounted code
+ENV PYTHONPATH="/app:${PYTHONPATH}"
+
+# Default command for development
+CMD ["/bin/bash"]
+

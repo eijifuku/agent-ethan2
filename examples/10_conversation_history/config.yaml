@@ -1,0 +1,62 @@
+meta:
+  version: 2
+  name: conversation-history-example
+  description: Example demonstrating conversation history with LLMs.
+
+runtime:
+  engine: lc.lcel
+  graph_name: conversation_demo
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.10_conversation_history.factories.provider_factory
+    components:
+      llm_with_history: examples.10_conversation_history.factories.llm_with_history_factory
+  exporters:
+    - type: console
+      color: true
+      verbose: false
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+
+components:
+  # LLM with conversation history
+  - id: chatbot
+    type: llm_with_history
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_message
+    outputs:
+      response: $.choices[0].text
+      messages: $.messages
+    config:
+      temperature: 0.7
+      max_output_tokens: 300
+      # Enable conversation history
+      use_history: true
+      history_key: chat_history
+      system_message: "You are a helpful assistant. Remember the conversation context."
+      max_history: 10  # Keep last 10 messages
+
+graph:
+  entry: chat
+  nodes:
+    - id: chat
+      type: component
+      component: chatbot
+
+  outputs:
+    - key: response
+      node: chat
+      output: response
+    - key: messages
+      node: chat
+      output: messages
+
+policies: {}
+

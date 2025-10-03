@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  agent-ethan2:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: agent-ethan2:latest
+    container_name: agent-ethan2
+    volumes:
+      # Mount application code for development
+      - ./agent_ethan2:/app/agent_ethan2
+      - ./schemas:/app/schemas
+      - ./docs:/app/docs
+      - ./examples:/app/examples
+      # Mount data directory if needed
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+      # LLM API Keys - pass from host environment
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      # Other common API keys
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY:-}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-}
+    # ports:
+    #   - "8000:8000"  # Uncomment if you need to expose ports
+    restart: unless-stopped
+    # command: python -m agent_ethan2  # Override default command if needed
+
+  # Development environment with testing tools
+  agent-ethan2-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    image: agent-ethan2:dev
+    container_name: agent-ethan2-dev
+    volumes:
+      # Mount entire project root for development
+      - .:/app
+    environment:
+      - PYTHONUNBUFFERED=1
+      - PYTHONPATH=/app
+      # LLM API Keys - pass from host environment
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY:-}
+      - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT:-}
+      # Other common API keys
+      - LANGCHAIN_API_KEY=${LANGCHAIN_API_KEY:-}
+      - LANGCHAIN_TRACING_V2=${LANGCHAIN_TRACING_V2:-}
+    command: /bin/bash
+    stdin_open: true
+    tty: true
+    profiles:
+      - dev
+

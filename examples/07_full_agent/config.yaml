@@ -1,0 +1,203 @@
+meta:
+  version: 2
+  name: full-agent-example
+  description: Comprehensive example demonstrating all AgentEthan2 features.
+
+runtime:
+  engine: lc.lcel
+  graph_name: full_agent_example
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.07_full_agent.factories.provider_factory
+    tools:
+      search: examples.07_full_agent.factories.tool_factory
+      calculator: examples.07_full_agent.factories.tool_factory
+      validator: examples.07_full_agent.factories.tool_factory
+    components:
+      llm: examples.07_full_agent.factories.llm_component_factory
+      tool: examples.07_full_agent.factories.tool_component_factory
+      custom: examples.07_full_agent.factories.custom_component_factory
+      router: examples.07_full_agent.factories.router_component_factory
+  exporters:
+    - type: jsonl
+      path: run.jsonl
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+
+tools:
+  - id: search
+    type: search
+    config: {}
+
+  - id: calculator
+    type: calculator
+    config: {}
+
+  - id: validator
+    type: validator
+    config: {}
+
+components:
+  # Router: Classify user intent
+  - id: intent_router
+    type: router
+    inputs:
+      user_input: graph.inputs.user_input
+    outputs:
+      intent: $.intent
+      confidence: $.confidence
+      route: $.route
+    config:
+      function: examples.07_full_agent.components.custom.intent_classifier
+
+  # Tool components
+  - id: search_component
+    type: tool
+    tool: search
+    inputs:
+      query: graph.inputs.search_query
+    outputs:
+      results: $.results
+      count: $.count
+    config: {}
+
+  - id: calc_component
+    type: tool
+    tool: calculator
+    inputs:
+      operation: graph.inputs.operation
+      a: graph.inputs.operand_a
+      b: graph.inputs.operand_b
+    outputs:
+      result: $.result
+      expression: $.expression
+    config: {}
+
+  - id: validate_component
+    type: tool
+    tool: validator
+    inputs:
+      data: graph.inputs.validation_data
+      required_fields: graph.inputs.required_fields
+    outputs:
+      valid: $.valid
+      message: $.message
+    config: {}
+
+  # LLM components for each route
+  - id: search_llm
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.search_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.5
+      max_output_tokens: 300
+
+  - id: calc_llm
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.calc_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.3
+      max_output_tokens: 200
+
+  - id: validate_llm
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.validate_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.3
+      max_output_tokens: 200
+
+  - id: general_llm
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.general_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.7
+      max_output_tokens: 300
+
+graph:
+  entry: classify_intent
+  nodes:
+    # Step 1: Classify user intent
+    - id: classify_intent
+      type: router
+      component: intent_router
+      next:
+        search: handle_search
+        calculate: handle_calculate
+        validate: handle_validate
+        general: handle_general
+
+    # Route: Search
+    - id: handle_search
+      type: tool
+      component: search_component
+      next: search_response
+
+    - id: search_response
+      type: llm
+      component: search_llm
+
+    # Route: Calculate
+    - id: handle_calculate
+      type: tool
+      component: calc_component
+      next: calc_response
+
+    - id: calc_response
+      type: llm
+      component: calc_llm
+
+    # Route: Validate
+    - id: handle_validate
+      type: tool
+      component: validate_component
+      next: validate_response
+
+    - id: validate_response
+      type: llm
+      component: validate_llm
+
+    # Route: General
+    - id: handle_general
+      type: llm
+      component: general_llm
+
+  outputs:
+    - key: intent
+      node: classify_intent
+      output: intent
+    - key: confidence
+      node: classify_intent
+      output: confidence
+
+policies:
+  retry:
+    default:
+      max_attempts: 3
+      backoff: exponential
+    overrides:
+      - target: handle_search
+        max_attempts: 2
+        backoff: fixed
+

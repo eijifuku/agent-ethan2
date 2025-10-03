@@ -1,0 +1,75 @@
+meta:
+  version: 2
+  name: multi-histories-example
+  description: Example with multiple conversation history instances.
+
+# Define multiple history instances
+histories:
+  - id: main_chat
+    backend:
+      type: memory
+      max_turns: 20
+    system_message: "You are a helpful assistant. Remember the conversation context."
+  
+  - id: code_context
+    backend:
+      type: memory
+      max_turns: 10
+    system_message: "You are a code assistant. Focus on technical details."
+  
+  - id: short_term
+    backend:
+      type: memory
+      max_turns: 3
+    system_message: "Answer briefly based on recent context only."
+
+runtime:
+  engine: lc.lcel
+  graph_name: multi_history_demo
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.10_conversation_history.factories.provider_factory
+    components:
+      llm_with_history: examples.10_conversation_history.factories.llm_with_history_factory
+  exporters:
+    - type: console
+      color: true
+      verbose: false
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+
+components:
+  # Main chatbot using main_chat history
+  - id: main_bot
+    type: llm_with_history
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_message
+    outputs:
+      response: $.choices[0].text
+    config:
+      temperature: 0.7
+      max_output_tokens: 300
+      use_history: true
+      history_id: main_chat  # Use main_chat history instance
+
+graph:
+  entry: chat
+  nodes:
+    - id: chat
+      type: component
+      component: main_bot
+
+  outputs:
+    - key: response
+      node: chat
+      output: response
+
+policies: {}
+

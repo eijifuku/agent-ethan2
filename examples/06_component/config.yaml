@@ -1,0 +1,110 @@
+meta:
+  version: 2
+  name: custom-component-example
+  description: Example demonstrating custom Python components.
+
+runtime:
+  engine: lc.lcel
+  graph_name: custom_component_example
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.06_component.factories.provider_factory
+    components:
+      llm: examples.06_component.factories.llm_component_factory
+      custom: examples.06_component.factories.custom_component_factory
+  exporters:
+    - type: jsonl
+      path: run.jsonl
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+      # API key is read from OPENAI_API_KEY environment variable
+
+components:
+  # Custom component: text analyzer
+  - id: analyzer
+    type: custom
+    inputs:
+      text: graph.inputs.text
+    outputs:
+      word_count: $.word_count
+      char_count: $.char_count
+      line_count: $.line_count
+      unique_words: $.unique_words
+      avg_word_length: $.avg_word_length
+    config:
+      function: examples.06_component.components.custom.text_analyzer
+
+  # Custom component: data aggregator
+  - id: aggregator
+    type: custom
+    inputs:
+      numbers: graph.inputs.numbers
+    outputs:
+      sum: $.sum
+      avg: $.avg
+      min: $.min
+      max: $.max
+      count: $.count
+    config:
+      function: examples.06_component.components.custom.data_aggregator
+
+  # LLM component: summarize analysis
+  - id: summarizer
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.summary_prompt
+    outputs:
+      text: $.choices[0].text
+    config:
+      temperature: 0.3
+      max_output_tokens: 300
+
+graph:
+  entry: analyze_text
+  nodes:
+    # Step 1: Analyze text with custom component
+    - id: analyze_text
+      type: component
+      component: analyzer
+      next: aggregate_data
+
+    # Step 2: Aggregate numbers with custom component
+    - id: aggregate_data
+      type: component
+      component: aggregator
+      next: summarize
+
+    # Step 3: Summarize with LLM
+    - id: summarize
+      type: llm
+      component: summarizer
+
+  outputs:
+    - key: word_count
+      node: analyze_text
+      output: word_count
+    - key: char_count
+      node: analyze_text
+      output: char_count
+    - key: unique_words
+      node: analyze_text
+      output: unique_words
+    - key: sum
+      node: aggregate_data
+      output: sum
+    - key: avg
+      node: aggregate_data
+      output: avg
+    - key: summary
+      node: summarize
+      output: text
+
+policies: {}
+

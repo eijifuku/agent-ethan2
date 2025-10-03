@@ -1,0 +1,133 @@
+meta:
+  version: 2
+  name: router-example
+  description: Example demonstrating router-based conditional branching.
+
+runtime:
+  engine: lc.lcel
+  graph_name: router_example
+  defaults:
+    provider: openai
+  factories:
+    providers:
+      openai: examples.03_router.factories.provider_factory
+    components:
+      llm: examples.03_router.factories.llm_component_factory
+      router: examples.03_router.factories.router_component_factory
+  exporters:
+    - type: jsonl
+      path: run.jsonl
+
+providers:
+  - id: openai
+    type: openai
+    config:
+      model: gpt-4o-mini
+      # API key is read from OPENAI_API_KEY environment variable
+
+components:
+  # Router: classify user input
+  - id: classifier
+    type: router
+    inputs:
+      user_input: graph.inputs.user_message
+    outputs:
+      route: $.route
+    config: {}
+
+  # Greeting handler
+  - id: greeting_handler
+    type: llm
+    provider: openai
+    inputs:
+      prompt: const:Respond warmly to this greeting
+    outputs:
+      response: $.choices[0].text
+    config:
+      temperature: 0.8
+      max_output_tokens: 100
+
+  # Question handler
+  - id: question_handler
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_message
+    outputs:
+      response: $.choices[0].text
+    config:
+      temperature: 0.3
+      max_output_tokens: 300
+
+  # Calculation handler
+  - id: calculation_handler
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_message
+    outputs:
+      response: $.choices[0].text
+    config:
+      temperature: 0.1
+      max_output_tokens: 200
+
+  # Default handler
+  - id: default_handler
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_message
+    outputs:
+      response: $.choices[0].text
+    config:
+      temperature: 0.5
+      max_output_tokens: 200
+
+graph:
+  entry: classify
+  nodes:
+    # Step 1: Classify input (router determines next node)
+    - id: classify
+      type: router
+      component: classifier
+      next:
+        greeting: handle_greeting
+        question: handle_question
+        calculation: handle_calculation
+        other: handle_other
+
+    # Route: greeting
+    - id: handle_greeting
+      type: llm
+      component: greeting_handler
+      outputs:
+        response: response
+
+    # Route: question
+    - id: handle_question
+      type: llm
+      component: question_handler
+      outputs:
+        response: response
+
+    # Route: calculation
+    - id: handle_calculation
+      type: llm
+      component: calculation_handler
+      outputs:
+        response: response
+
+    # Route: default/other
+    - id: handle_other
+      type: llm
+      component: default_handler
+      outputs:
+        response: response
+
+  outputs:
+    - key: route_taken
+      node: classify
+      output: route
+
+policies: {}
+
