@@ -19,7 +19,10 @@ dependencies = [
 
 [tool.setuptools.packages.find]
 include = ["agent_ethan2*"]
-exclude = ["tests*", "docs*", "specs*", "schemas*"]
+exclude = ["tests*", "docs*", "specs*"]
+
+[tool.setuptools.package-data]
+agent_ethan2 = ["schemas/*.json"]
 
 [project.optional-dependencies]
 dev = [

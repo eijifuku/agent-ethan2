@@ -1,0 +1,4 @@
+include README.md
+include schemas/*.json
+recursive-include agent_ethan2 *.py
+
