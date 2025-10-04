@@ -226,8 +226,9 @@ class YamlLoaderV2:
         *,
         allowed_runtime_engines: Optional[Iterable[str]] = None,
     ) -> None:
-        root = Path(__file__).resolve().parents[2]
-        self._schema_path = Path(schema_path) if schema_path else root / "schemas" / "yaml_v2.json"
+        # Get the agent_ethan2 package directory
+        package_root = Path(__file__).resolve().parents[1]
+        self._schema_path = Path(schema_path) if schema_path else package_root / "schemas" / "yaml_v2.json"
         if not self._schema_path.exists():
             raise FileNotFoundError(f"Schema file not found: {self._schema_path}")
         with self._schema_path.open("r", encoding="utf-8") as handle:
