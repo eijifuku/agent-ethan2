@@ -1,0 +1,35 @@
+name: Auto Tag (SemVer patch, tag-only)
+
+on:
+  push:
+    branches: [ "main" ]
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    if: "!contains(github.event.head_commit.message, '[skip ci]')"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Create next patch tag (no file changes)
+        run: |
+          set -euo pipefail
+          LAST=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' | sort -V | tail -1)
+          if [ -z "$LAST" ]; then
+            NEW="v0.1.0"
+          else
+            V="${LAST#v}"
+            IFS=. read -r MAJOR MINOR PATCH <<EOF
+$V
+EOF
+            NEW="v${MAJOR}.${MINOR}.$((PATCH+1))"
+          fi
+          echo "New tag: ${NEW}"
+          git tag "${NEW}"
+          git push origin "${NEW}"
+
