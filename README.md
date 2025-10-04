@@ -91,44 +91,7 @@ graph:
       output: response
 ```
 
-### 2. Implement Factory Functions
-
-Create `my_agent/factories.py`:
-
-```python
-import os
-from openai import OpenAI
-
-def provider_factory(provider):
-    """Create OpenAI client."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    client = OpenAI(api_key=api_key)
-    return {
-        "client": client,
-        "model": provider.config.get("model", "gpt-4o-mini"),
-        "config": dict(provider.config)
-    }
-
-async def llm_factory(component, provider_instance, tool_instance):
-    """Create LLM component."""
-    client = provider_instance["client"]
-    model = provider_instance["model"]
-    
-    async def call(state, inputs, ctx):
-        prompt = inputs.get("prompt", "")
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return {
-            "choices": [{"text": response.choices[0].message.content}],
-            "usage": response.usage.model_dump()
-        }
-    
-    return call
-```
-
-### 3. Run Your Agent
+### 2. Run Your Agent
 
 Create `run.py`:
 
@@ -153,15 +116,8 @@ python run.py
 
 ## Super Quick Start
 
-> This section is for users who want to get started without reading documentation.
-> Check out the [examples](./examples/) directory for working code!
-
-```bash
-# Run a basic example
-cd examples/01_basic_llm
-export OPENAI_API_KEY=your-key
-python run.py
-```
+We've published an [AgentEthan2 specification MCP for AI code editors](https://github.com/eijifuku/agent-ethan-guide-mcp).  
+Set up this MCP and describe the agent specification you want to create to AI.
 
 ## Documentation
 
@@ -188,6 +144,15 @@ python run.py
 - [Examples](./docs/en/examples.md) - Sample implementations
 - [Troubleshooting](./docs/en/troubleshooting.md) - Common issues
 
+## Custom Factories
+
+For advanced use cases requiring custom providers, components, or tools, see:
+
+- [Advanced Providers](./docs/en/providers-advanced.md) - Custom provider factories
+- [Custom Tools](./docs/en/custom_tools.md) - Custom tool implementations  
+- [Custom Logic Nodes](./docs/en/custom_logic_node.md) - Custom component logic
+- [Runtime Configuration](./docs/en/runtime-config.md) - Factory registration
+
 ## Examples
 
 The [examples](./examples/) directory contains working examples:
@@ -207,7 +172,7 @@ The [examples](./examples/) directory contains working examples:
 
 MIT License
 
-Copyright (c) 2024 AgentEthan2
+Copyright (c) 2025 AgentEthan2
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

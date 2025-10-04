@@ -91,44 +91,7 @@ graph:
       output: response
 ```
 
-### 2. ファクトリー関数を実装
-
-`my_agent/factories.py` を作成:
-
-```python
-import os
-from openai import OpenAI
-
-def provider_factory(provider):
-    """OpenAIクライアントを作成"""
-    api_key = os.getenv("OPENAI_API_KEY")
-    client = OpenAI(api_key=api_key)
-    return {
-        "client": client,
-        "model": provider.config.get("model", "gpt-4o-mini"),
-        "config": dict(provider.config)
-    }
-
-async def llm_factory(component, provider_instance, tool_instance):
-    """LLMコンポーネントを作成"""
-    client = provider_instance["client"]
-    model = provider_instance["model"]
-    
-    async def call(state, inputs, ctx):
-        prompt = inputs.get("prompt", "")
-        response = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}]
-        )
-        return {
-            "choices": [{"text": response.choices[0].message.content}],
-            "usage": response.usage.model_dump()
-        }
-    
-    return call
-```
-
-### 3. エージェントを実行
+### 2. エージェントを実行
 
 `run.py` を作成:
 
@@ -153,15 +116,8 @@ python run.py
 
 ## 超クイックスタート
 
-> ドキュメントを読まずにすぐ始めたい方向けのセクションです。
-> [examples](./examples/)ディレクトリで動作するコードを確認してください！
-
-```bash
-# 基本的な例を実行
-cd examples/01_basic_llm
-export OPENAI_API_KEY=your-key
-python run.py
-```
+[AIコードエディタにAgentEthan2の仕様を理解させるMCP](https://github.com/eijifuku/agent-ethan-guide-mcp)を公開しています。  
+このMCPを設定して作りたいエージェントの仕様をAIに伝える。  
 
 ## ドキュメント
 
@@ -188,6 +144,15 @@ python run.py
 - [サンプル集](./docs/ja/examples.md) - 実装例
 - [トラブルシューティング](./docs/ja/troubleshooting.md) - よくある問題
 
+## カスタムファクトリー
+
+高度な用途でカスタムプロバイダー、コンポーネント、ツールが必要な場合は、以下を参照してください：
+
+- [高度なプロバイダー](./docs/ja/providers-advanced.md) - カスタムプロバイダーファクトリー
+- [カスタムツール](./docs/ja/custom_tools.md) - カスタムツール実装
+- [カスタムロジックノード](./docs/ja/custom_logic_node.md) - カスタムコンポーネントロジック
+- [ランタイム設定](./docs/ja/runtime-config.md) - ファクトリー登録
+
 ## サンプル
 
 [examples](./examples/)ディレクトリには動作するサンプルが含まれています：
@@ -207,7 +172,7 @@ python run.py
 
 MIT License
 
-Copyright (c) 2024 AgentEthan2
+Copyright (c) 2025 AgentEthan2
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
