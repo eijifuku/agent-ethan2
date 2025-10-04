@@ -10,7 +10,6 @@ runtime:
     provider: openai
   factories:
     components:
-      llm: examples.03_router.factories.llm_component_factory
       router: examples.03_router.factories.router_component_factory
   exporters:
     - type: jsonl

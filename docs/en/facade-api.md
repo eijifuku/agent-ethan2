@@ -112,19 +112,18 @@ class GraphResult:
 runtime:
   engine: lc.lcel
   graph_name: my_graph
-  factories:
-    providers:
-      openai: examples.01_basic_llm.factories.provider_factory
-    components:
-      llm: examples.01_basic_llm.factories.component_factory
+  defaults:
+    provider: openai
   exporters:
     - type: jsonl
       path: run.jsonl
 ```
 
+組み込みのデフォルトファクトリー（`openai` プロバイダーや `llm`/`tool` コンポーネントなど）が自動的に適用されるため、一般的な構成では追加のファクトリー定義は不要です。必要に応じて `runtime.factories` に個別設定を追加することで既定を上書きできます。
+
 この設定により、以下が自動的に行われます：
 
-1. **ファクトリーの読み込み**: `factories` セクションで定義されたPython関数を動的にインポート
+1. **ファクトリーの読み込み**: コンストラクタ引数、YAML、組み込みデフォルトをマージ
 2. **レジストリの構築**: `ProviderResolver`, `ToolResolver`, `ComponentResolver` を自動生成
 3. **依存解決**: プロバイダー、ツール、コンポーネントのインスタンス化
 4. **グラフ構築**: IR（中間表現）からグラフ定義を生成

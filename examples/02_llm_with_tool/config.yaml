@@ -11,9 +11,6 @@ runtime:
   factories:
     tools:
       calculator: examples.02_llm_with_tool.components.tools.calculator_tool_factory
-    components:
-      llm: examples.02_llm_with_tool.factories.llm_component_factory
-      tool: examples.02_llm_with_tool.factories.tool_component_factory
   exporters:
     - type: jsonl
       path: run.jsonl

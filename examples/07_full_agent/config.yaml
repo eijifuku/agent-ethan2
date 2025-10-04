@@ -14,8 +14,6 @@ runtime:
       calculator: examples.07_full_agent.factories.tool_factory
       validator: examples.07_full_agent.factories.tool_factory
     components:
-      llm: examples.07_full_agent.factories.llm_component_factory
-      tool: examples.07_full_agent.factories.tool_component_factory
       custom: examples.07_full_agent.factories.custom_component_factory
       router: examples.07_full_agent.factories.router_component_factory
   exporters:

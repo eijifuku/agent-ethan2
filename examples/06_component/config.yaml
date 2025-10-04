@@ -10,7 +10,6 @@ runtime:
     provider: openai
   factories:
     components:
-      llm: examples.06_component.factories.llm_component_factory
       custom: examples.06_component.factories.custom_component_factory
   exporters:
     - type: jsonl

@@ -10,7 +10,6 @@ runtime:
     provider: openai
   factories:
     components:
-      llm: examples.04_map_parallel.factories.llm_component_factory
       map: examples.04_map_parallel.factories.map_component_factory
   exporters:
     - type: jsonl

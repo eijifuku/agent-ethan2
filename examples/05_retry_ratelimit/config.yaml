@@ -10,7 +10,6 @@ runtime:
     provider: openai
   factories:
     components:
-      llm: examples.05_retry_ratelimit.factories.llm_component_factory
       flaky: examples.05_retry_ratelimit.factories.flaky_component_factory
   exporters:
     - type: jsonl

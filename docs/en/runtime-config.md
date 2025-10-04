@@ -114,51 +114,34 @@ def tool_factory(tool: NormalizedTool) -> Any:
 
 ### components
 
-コンポーネントタイプとファクトリー関数のマッピングを定義します。
+`llm` や `tool` など一般的なタイプには標準コンポーネントファクトリーがバンドルされているため、基本的な LLM 呼び出しやツールラップのために Python 実装を書く必要はありません。独自のタイプや高度なロジックが必要な場合のみ `runtime.factories.components` を利用します。
 
 ```yaml
 factories:
   components:
-    llm: my_package.components.llm_factory
+    router: my_package.components.router_factory
 ```
 
-**ファクトリー関数のシグネチャ**:
+**カスタムファクトリーのシグネチャ例**:
 
 ```python
 from typing import Mapping, Any, Callable
 
-def component_factory(
+def router_factory(
     component: NormalizedComponent,
     provider_instance: Mapping[str, Any],
     tool_instance: Any,
 ) -> Callable:
-    """
-    Args:
-        component: 正規化されたコンポーネント定義
-        provider_instance: プロバイダーファクトリーが返したインスタンス
-        tool_instance: ツールファクトリーが返したインスタンス（該当する場合）
-    
-    Returns:
-        async callable: async def call(state, inputs, ctx) -> Mapping[str, Any]
-    """
-    client = provider_instance["client"]
-    model = provider_instance["model"]
-    temperature = component.config.get("temperature", 0.7)
-    
     async def call(state: Mapping[str, Any], inputs: Mapping[str, Any], ctx: Mapping[str, Any]) -> Mapping[str, Any]:
-        prompt = inputs.get("prompt", "")
-        response = await client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=temperature,
-        )
-        return {
-            "choices": [{
-                "text": response.choices[0].message.content
-            }],
-            "usage": response.usage.model_dump(),
-        }
-    
+        user_input = inputs.get("user_input", "").lower()
+        if "hello" in user_input:
+            route = "greeting"
+        elif "?" in user_input:
+            route = "question"
+        else:
+            route = "other"
+        return {"route": route}
+
     return call
 ```
 

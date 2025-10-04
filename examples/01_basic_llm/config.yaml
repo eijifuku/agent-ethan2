@@ -8,9 +8,6 @@ runtime:
   graph_name: basic_llm_run
   defaults:
     provider: openai
-  factories:
-    components:
-      llm: examples.01_basic_llm.factories.component_factory
   exporters:
     - type: jsonl
       path: run.jsonl
