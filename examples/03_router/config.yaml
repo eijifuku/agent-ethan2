@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.03_router.factories.provider_factory
     components:
       llm: examples.03_router.factories.llm_component_factory
       router: examples.03_router.factories.router_component_factory
@@ -130,4 +128,3 @@ graph:
       output: route
 
 policies: {}
-

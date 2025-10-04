@@ -77,36 +77,16 @@ runtime:
 
 ### providers
 
-プロバイダータイプとファクトリー関数のマッピングを定義します。
-
-**形式**: `<provider_type>: <dotted.path.to.factory_function>`
+プロバイダーファクトリーは必要時のみ定義します。`openai` と `anthropic` はフレームワークに同梱されており、追加設定なしで利用できます。
 
 ```yaml
-factories:
-  providers:
-    openai: examples.01_basic_llm.factories.provider_factory
+runtime:
+  factories:
+    providers:
+      azure_openai: my_package.factories.azure_openai_provider
 ```
 
-**ファクトリー関数のシグネチャ**:
-
-```python
-def provider_factory(provider: NormalizedProvider) -> Mapping[str, Any]:
-    """
-    Args:
-        provider: 正規化されたプロバイダー定義
-            - provider.id: プロバイダーID
-            - provider.type: プロバイダータイプ
-            - provider.config: 設定dict
-    
-    Returns:
-        プロバイダーインスタンス（dict推奨）
-    """
-    from openai import OpenAI
-    return {
-        "client": OpenAI(api_key=os.getenv("OPENAI_API_KEY")),
-        "model": provider.config.get("model", "gpt-4"),
-    }
-```
+`runtime.factories.providers` に記述したマッピングは組み込みファクトリーを上書きします。ファクトリー関数は `Callable[[NormalizedProvider], Mapping[str, Any]]` 形式で、`ProviderFactoryBase` のヘルパーを活用できます。
 
 ### tools
 
@@ -238,9 +218,10 @@ runtime:
     temperature: 0.2
     max_tokens: 1024
   
-  # ファクトリー定義
+  # ファクトリー定義（デフォルトを上書き／追加する場合のみ）
   factories:
     providers:
+      # 例: デフォルトの openai を自社実装で拡張する
       openai: my_company.agents.factories.openai_provider
       anthropic: my_company.agents.factories.anthropic_provider
     tools:

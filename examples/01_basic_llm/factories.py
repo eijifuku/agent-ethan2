@@ -3,27 +3,11 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from typing import Any, Mapping
 
 from openai import OpenAI
 
-from agent_ethan2.graph.errors import GraphExecutionError
-from agent_ethan2.ir import NormalizedComponent, NormalizedProvider
-
-
-def provider_factory(provider: NormalizedProvider) -> Mapping[str, Any]:
-    """Instantiate an OpenAI client based on provider config/env."""
-
-    api_key = provider.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise GraphExecutionError(
-            "ERR_PROVIDER_DEFAULT_MISSING",
-            "OPENAI_API_KEY is required for the basic LLM example",
-        )
-    model = provider.config.get("model") or os.getenv("OPENAI_MODEL", "gpt-4o-mini")
-    client = OpenAI(api_key=api_key)
-    return {"client": client, "model": model, "config": dict(provider.config)}
+from agent_ethan2.ir import NormalizedComponent
 
 
 def component_factory(

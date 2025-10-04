@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.07_full_agent.factories.provider_factory
     tools:
       search: examples.07_full_agent.factories.tool_factory
       calculator: examples.07_full_agent.factories.tool_factory
@@ -200,4 +198,3 @@ policies:
       - target: handle_search
         max_attempts: 2
         backoff: fixed
-

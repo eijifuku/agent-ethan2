@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.09_hooks.factories.error_provider_factory
     components:
       llm_with_hooks: examples.09_hooks.factories.llm_with_hooks_factory
   exporters:
@@ -49,4 +47,3 @@ graph:
       output: response
 
 policies: {}
-

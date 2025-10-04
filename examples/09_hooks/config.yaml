@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.09_hooks.factories.provider_factory
     components:
       llm_with_hooks: examples.09_hooks.factories.llm_with_hooks_factory
       cached: examples.09_hooks.factories.cached_component_factory
@@ -67,4 +65,3 @@ graph:
       output: metadata
 
 policies: {}
-

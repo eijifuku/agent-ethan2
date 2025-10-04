@@ -12,6 +12,7 @@ AgentEthan2へようこそ！このガイドは、YAML設定を使用してAIエ
 - [ノード](./nodes.md) - エージェントの構成要素を理解する
 - [YAML定義リファレンス](./yaml_reference.md) - すべてのYAMLキーの完全な仕様
 - [プロバイダ](./providers.md) - LLMプロバイダの設定（OpenAI、ローカルモデルなど）
+- [プロバイダー（応用）](./providers-advanced.md) - カスタムファクトリーの実装と上書き方法
 - [カスタムロジックノード](./custom_logic_node.md) - カスタムノードの作成
 - [カスタムツール](./custom_tools.md) - カスタムツールの作成と使用
 - [ワークフロー](./workflow.md) - YAMLから実行完了までのMVPパイプライン

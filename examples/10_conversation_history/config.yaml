@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.10_conversation_history.factories.provider_factory
     components:
       llm_with_history: examples.10_conversation_history.factories.llm_with_history_factory
   exporters:
@@ -59,4 +57,3 @@ graph:
       output: messages
 
 policies: {}
-

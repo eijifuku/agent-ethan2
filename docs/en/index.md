@@ -12,6 +12,7 @@ Welcome to the AgentEthan2 documentation! This guide will help you build AI agen
 - [Nodes](./nodes.md) - Understanding the building blocks of your agent
 - [YAML Definition Reference](./yaml_reference.md) - Complete specification of all YAML keys
 - [Providers](./providers.md) - Configuring LLM providers (OpenAI, local models, etc.)
+- [Providers (Advanced)](./providers-advanced.md) - Building custom provider factories and overrides
 - [Custom Logic Nodes](./custom_logic_node.md) - Creating custom components
 - [Runtime Configuration](./runtime-config.md) - Engine, factories, and exporters configuration
 - [JSONPath Output Extraction](./jsonpath-outputs.md) - Extracting values from component outputs
@@ -106,4 +107,3 @@ AgentEthan2 is a **declarative agent framework** that separates workflow definit
 2. Try the [Quick Start](../README.md#quick-start) example
 3. Explore the [Examples](./examples.md) directory
 4. Build your first agent!
-

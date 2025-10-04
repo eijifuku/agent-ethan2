@@ -3,24 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-import os
 from typing import Any, Mapping
 
 from openai import OpenAI
 
-from agent_ethan2.ir import NormalizedComponent, NormalizedProvider
+from agent_ethan2.ir import NormalizedComponent
 
-
-def provider_factory(provider: NormalizedProvider) -> Mapping[str, Any]:
-    """Create OpenAI provider instance."""
-    api_key = os.getenv("OPENAI_API_KEY")
-    if not api_key:
-        raise ValueError("OPENAI_API_KEY environment variable not set")
-    
-    client = OpenAI(api_key=api_key)
-    model = provider.config.get("model", "gpt-4o-mini")
-    
-    return {"client": client, "model": model, "config": dict(provider.config)}
 
 
 def llm_component_factory(

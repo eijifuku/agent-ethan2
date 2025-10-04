@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.04_map_parallel.factories.provider_factory
     components:
       llm: examples.04_map_parallel.factories.llm_component_factory
       map: examples.04_map_parallel.factories.map_component_factory
@@ -79,4 +77,3 @@ graph:
       output: text
 
 policies: {}
-

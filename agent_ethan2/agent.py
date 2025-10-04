@@ -9,6 +9,7 @@ from typing import Any, Mapping, Optional, Union
 from agent_ethan2.graph import GraphBuilder
 from agent_ethan2.ir import normalize_document
 from agent_ethan2.loader import YamlLoaderV2
+from agent_ethan2.providers import DEFAULT_PROVIDER_FACTORIES
 from agent_ethan2.registry import Registry
 from agent_ethan2.registry.resolver import ComponentResolver, ProviderResolver, ToolResolver
 from agent_ethan2.runtime.scheduler import GraphResult, Scheduler
@@ -64,7 +65,11 @@ class AgentEthan:
         factories_config = runtime_config.get("factories", {})
         
         # Merge provided factories with config factories (provided takes precedence)
-        final_provider_factories = {**factories_config.get("providers", {}), **(provider_factories or {})}
+        final_provider_factories = {
+            **DEFAULT_PROVIDER_FACTORIES,
+            **factories_config.get("providers", {}),
+            **(provider_factories or {}),
+        }
         final_tool_factories = {**factories_config.get("tools", {}), **(tool_factories or {})}
         final_component_factories = {**factories_config.get("components", {}), **(component_factories or {})}
         

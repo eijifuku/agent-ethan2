@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.06_component.factories.provider_factory
     components:
       llm: examples.06_component.factories.llm_component_factory
       custom: examples.06_component.factories.custom_component_factory
@@ -107,4 +105,3 @@ graph:
       output: text
 
 policies: {}
-

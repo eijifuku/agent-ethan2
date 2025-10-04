@@ -9,8 +9,6 @@ runtime:
   defaults:
     provider: openai
   factories:
-    providers:
-      openai: examples.05_retry_ratelimit.factories.provider_factory
     components:
       llm: examples.05_retry_ratelimit.factories.llm_component_factory
       flaky: examples.05_retry_ratelimit.factories.flaky_component_factory
@@ -97,4 +95,3 @@ policies:
         type: token_bucket
         capacity: 3
         refill_rate: 5.0
-

@@ -1,51 +1,19 @@
 # Providers
 
-Configuring LLM providers for your agent.
+Configure and use LLM providers in AgentEthan2.
 
-## Overview
+## Default Factories
 
-Providers are LLM service connections (OpenAI, Anthropic, local models, etc.). Each provider:
-- Has a unique ID
-- Specifies a type
-- Contains provider-specific configuration
-- Is instantiated by a factory function
+AgentEthan2 ships with ready-to-use provider factories. They are automatically registered and can be referenced in YAML without any extra plumbing.
 
-## Configuration
+| Provider type | Factory path | Key settings |
+| ------------- | ------------ | ------------ |
+| `openai`      | `agent_ethan2.providers.openai.create_openai_provider` | `api_key`, `model`, `base_url`, `organization`, `timeout`, `max_retries`, `temperature` |
+| `anthropic`   | `agent_ethan2.providers.anthropic.create_anthropic_provider` | `api_key`, `model`, `max_tokens`, `temperature` |
 
-### YAML Definition
+The factories read configuration from `providers[].config` and fall back to well-known environment variables when the value is not present.
 
-```yaml
-providers:
-  - id: openai
-    type: openai
-    config:
-      model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
-```
-
-### Factory Implementation
-
-```python
-import os
-from openai import OpenAI
-
-def provider_factory(provider):
-    """Create OpenAI client from provider config."""
-    api_key = provider.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-    model = provider.config.get("model", "gpt-4o-mini")
-    
-    client = OpenAI(api_key=api_key)
-    
-    return {
-        "client": client,
-        "model": model,
-        "config": dict(provider.config)
-    }
-```
-
-## OpenAI Provider
-
-### Basic Configuration
+## Basic Usage
 
 ```yaml
 providers:
@@ -53,72 +21,60 @@ providers:
     type: openai
     config:
       model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
+      # api_key is resolved from config or OPENAI_API_KEY
+
+components:
+  - id: answer_llm
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_prompt
+    outputs:
+      text: $.choices[0].text
 ```
 
-### Advanced Configuration
+No custom factory registration is required—the default OpenAI factory will instantiate the client and expose it to the component.
+
+## Environment Variables
+
+| Provider | Key | Purpose |
+| -------- | --- | ------- |
+| OpenAI | `OPENAI_API_KEY` | API key fallback |
+| OpenAI | `OPENAI_MODEL` | Default model name |
+| OpenAI | `OPENAI_BASE_URL` | Base URL for OpenAI-compatible endpoints |
+| OpenAI | `OPENAI_ORGANIZATION` | Organization identifier |
+| OpenAI | `OPENAI_TIMEOUT` | Request timeout (seconds) |
+| OpenAI | `OPENAI_MAX_RETRIES` | Retry count |
+| OpenAI | `OPENAI_TEMPERATURE` | Default sampling temperature |
+| Anthropic | `ANTHROPIC_API_KEY` | API key fallback |
+| Anthropic | `ANTHROPIC_MODEL` | Default model name |
+| Anthropic | `ANTHROPIC_MAX_TOKENS` | Completion token limit |
+| Anthropic | `ANTHROPIC_TEMPERATURE` | Sampling temperature |
+
+Define the environment variables when you do not want to commit sensitive values to source control.
+
+```bash
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+## Local and Self-Hosted Models
+
+The OpenAI factory supports alternate base URLs that implement the OpenAI REST contract (Ollama, LM Studio, vLLM, etc.). When a `base_url` is provided, the API key becomes optional.
 
 ```yaml
 providers:
-  - id: openai
+  - id: local_llm
     type: openai
     config:
-      model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
-      organization: org-xxx
-      timeout: 30
-      max_retries: 3
-      temperature: 0.7
-```
-
-## Local LLMs (OpenAI-Compatible)
-
-Use `base_url` for local models like Ollama, LM Studio, etc.
-
-### Ollama
-
-```yaml
-providers:
-  - id: ollama
-    type: openai
-    config:
-      model: llama2
+      model: llama3
       base_url: http://localhost:11434/v1
-      api_key: dummy  # Ollama doesn't need a real key
-```
-
-### LM Studio
-
-```yaml
-providers:
-  - id: lmstudio
-    type: openai
-    config:
-      model: local-model
-      base_url: http://localhost:1234/v1
-      api_key: dummy
-```
-
-### Factory with base_url Support
-
-```python
-def provider_factory(provider):
-    api_key = provider.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-    model = provider.config.get("model", "gpt-4o-mini")
-    
-    # Support for local LLMs
-    client_kwargs = {"api_key": api_key}
-    if "base_url" in provider.config:
-        client_kwargs["base_url"] = provider.config["base_url"]
-    
-    client = OpenAI(**client_kwargs)
-    
-    return {"client": client, "model": model}
+      api_key: dummy  # optional for Ollama-style endpoints
 ```
 
 ## Multiple Providers
 
-Use different providers for different tasks:
+You can mix different providers in the same project without additional wiring.
 
 ```yaml
 providers:
@@ -126,81 +82,65 @@ providers:
     type: openai
     config:
       model: gpt-4o-mini
-  
-  - id: openai_smart
-    type: openai
+
+  - id: claude
+    type: anthropic
     config:
-      model: gpt-4o
-  
-  - id: local_llm
-    type: openai
-    config:
-      model: llama2
-      base_url: http://localhost:11434/v1
+      model: claude-3-5-sonnet-latest
+      max_tokens: 2048
 
 components:
   - id: classifier
     type: llm
-    provider: openai_fast  # Fast model for classification
-  
+    provider: openai_fast
   - id: writer
     type: llm
-    provider: openai_smart  # Smart model for generation
-  
-  - id: summarizer
-    type: llm
-    provider: local_llm  # Local model for summarization
+    provider: claude
 ```
 
-## Provider Return Format
+## Provider Context Structure
 
-Factory functions should return a dict with:
+Factories return a mapping that is passed to component factories. The built-in providers expose:
 
 ```python
 {
-    "client": client_instance,    # LLM client
-    "model": "model-name",         # Model identifier
-    "config": dict(provider.config)  # Original config
+    "client": <SDK client>,
+    "model": "...",            # resolved model name
+    "config": {...},             # copy of providers[].config
+    # OpenAI-only:
+    "base_url": "..." or None,
+    "organization": "..." or None,
+    "timeout": float | None,
+    "max_retries": int | None,
+    "temperature": float | None,
+    # Anthropic-only:
+    "max_tokens": int | None,
+    "temperature": float | None,
 }
 ```
 
-This allows components to access:
-- `provider_instance["client"]` - The LLM client
-- `provider_instance["model"]` - Model name
-- `provider_instance["config"]` - Provider config
+Components can pull information from this mapping to configure calls.
 
-## Environment Variables
+## Overriding Factories
 
-Use environment variables for sensitive data:
+AgentEthan merges provider factories in the following order (last wins):
 
-```yaml
-providers:
-  - id: openai
-    type: openai
-    config:
-      model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
-```
+1. Constructor arguments passed to `AgentEthan` (`provider_factories`)
+2. `runtime.factories.providers` in YAML
+3. Built-in defaults (`DEFAULT_PROVIDER_FACTORIES`)
 
-```bash
-export OPENAI_API_KEY=sk-...
-```
+If you want to replace or extend the default behaviour, define a custom factory and register it through YAML or code. See [Providers (Advanced)](./providers-advanced.md) for recipes and best practices.
 
 ## Best Practices
 
-1. **Use Environment Variables** - Never hardcode API keys
-2. **Set Reasonable Timeouts** - Prevent hanging requests
-3. **Configure Retries** - Handle transient failures
-4. **Use Local LLMs for Development** - Reduce costs
-5. **Separate Fast/Smart Models** - Optimize cost and latency
+- Store secrets in environment variables rather than YAML files.
+- Configure sensible timeouts and retry limits for production.
+- Reuse provider IDs across components to share client instances.
+- Use local models for development workflows when possible.
+- Keep provider configuration minimal; push complex logic into custom factories when needed.
 
-## Examples
+## Reference Material
 
-See [examples/01_basic_llm/](../../examples/01_basic_llm/) for working code.
-
-## Next Steps
-
-- Learn about [Custom Logic Nodes](./custom_logic_node.md)
-- See [Chat History](./chat_history.md) for conversation management
-- Read [YAML Reference](./yaml_reference.md) for complete spec
-
+- [Runtime configuration](./runtime-config.md)
+- [Providers (Advanced)](./providers-advanced.md)
+- [Examples directory](../examples/)

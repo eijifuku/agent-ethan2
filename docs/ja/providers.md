@@ -1,51 +1,19 @@
 # プロバイダー
 
-エージェントのLLMプロバイダーの設定方法。
+AgentEthan2 で LLM プロバイダーを設定・利用する方法です。
 
-## 概要
+## デフォルトファクトリー
 
-プロバイダーはLLMサービスへの接続です（OpenAI、Anthropic、ローカルモデルなど）。各プロバイダーは：
-- 一意のIDを持つ
-- タイプを指定する
-- プロバイダー固有の設定を含む
-- ファクトリー関数によってインスタンス化される
+AgentEthan2 には主要プロバイダーのファクトリーが同梱されています。追加設定なしで YAML から直接利用できます。
 
-## 設定
+| プロバイダー種別 | ファクトリーパス | 主な設定キー |
+| ---------------- | ---------------- | ------------- |
+| `openai`         | `agent_ethan2.providers.openai.create_openai_provider` | `api_key`, `model`, `base_url`, `organization`, `timeout`, `max_retries`, `temperature` |
+| `anthropic`      | `agent_ethan2.providers.anthropic.create_anthropic_provider` | `api_key`, `model`, `max_tokens`, `temperature` |
 
-### YAML定義
+ファクトリーは `providers[].config` を参照し、未指定の場合は既定の環境変数から値を補完します。
 
-```yaml
-providers:
-  - id: openai
-    type: openai
-    config:
-      model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
-```
-
-### ファクトリー実装
-
-```python
-import os
-from openai import OpenAI
-
-def provider_factory(provider):
-    """Create OpenAI client from provider config."""
-    api_key = provider.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-    model = provider.config.get("model", "gpt-4o-mini")
-    
-    client = OpenAI(api_key=api_key)
-    
-    return {
-        "client": client,
-        "model": model,
-        "config": dict(provider.config)
-    }
-```
-
-## OpenAIプロバイダー
-
-### 基本設定
+## 基本的な使い方
 
 ```yaml
 providers:
@@ -53,72 +21,58 @@ providers:
     type: openai
     config:
       model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
+      # api_key は config または OPENAI_API_KEY から解決される
+
+components:
+  - id: answer_llm
+    type: llm
+    provider: openai
+    inputs:
+      prompt: graph.inputs.user_prompt
+    outputs:
+      text: $.choices[0].text
 ```
 
-### 高度な設定
+デフォルトの OpenAI ファクトリーが自動的にクライアントを生成し、コンポーネントへ渡します。
+
+## 環境変数
+
+| プロバイダー | 環境変数 | 役割 |
+| ------------ | -------- | ---- |
+| OpenAI | `OPENAI_API_KEY` | API キー |
+| OpenAI | `OPENAI_MODEL` | デフォルトモデル |
+| OpenAI | `OPENAI_BASE_URL` | OpenAI 互換エンドポイントのベース URL |
+| OpenAI | `OPENAI_ORGANIZATION` | 組織 ID |
+| OpenAI | `OPENAI_TIMEOUT` | タイムアウト（秒） |
+| OpenAI | `OPENAI_MAX_RETRIES` | リトライ回数 |
+| OpenAI | `OPENAI_TEMPERATURE` | サンプリング温度 |
+| Anthropic | `ANTHROPIC_API_KEY` | API キー |
+| Anthropic | `ANTHROPIC_MODEL` | デフォルトモデル |
+| Anthropic | `ANTHROPIC_MAX_TOKENS` | トークン上限 |
+| Anthropic | `ANTHROPIC_TEMPERATURE` | サンプリング温度 |
+
+```bash
+export OPENAI_API_KEY=sk-...
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+## ローカル／セルフホスト LLM
+
+OpenAI ファクトリーは OpenAI 互換 API を提供するエンドポイント（Ollama、LM Studio、vLLM など）に対応しています。`base_url` を指定すると API キーは任意になります。
 
 ```yaml
 providers:
-  - id: openai
+  - id: local_llm
     type: openai
     config:
-      model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
-      organization: org-xxx
-      timeout: 30
-      max_retries: 3
-      temperature: 0.7
-```
-
-## ローカルLLM（OpenAI互換）
-
-Ollama、LM Studioなどのローカルモデルには `base_url` を使用します。
-
-### Ollama
-
-```yaml
-providers:
-  - id: ollama
-    type: openai
-    config:
-      model: llama2
+      model: llama3
       base_url: http://localhost:11434/v1
-      api_key: dummy  # Ollama doesn't need a real key
+      api_key: dummy  # Ollama では任意
 ```
 
-### LM Studio
+## 複数プロバイダーの併用
 
-```yaml
-providers:
-  - id: lmstudio
-    type: openai
-    config:
-      model: local-model
-      base_url: http://localhost:1234/v1
-      api_key: dummy
-```
-
-### base_url対応ファクトリー
-
-```python
-def provider_factory(provider):
-    api_key = provider.config.get("api_key") or os.getenv("OPENAI_API_KEY")
-    model = provider.config.get("model", "gpt-4o-mini")
-    
-    # Support for local LLMs
-    client_kwargs = {"api_key": api_key}
-    if "base_url" in provider.config:
-        client_kwargs["base_url"] = provider.config["base_url"]
-    
-    client = OpenAI(**client_kwargs)
-    
-    return {"client": client, "model": model}
-```
-
-## 複数プロバイダー
-
-異なるタスクに異なるプロバイダーを使用：
+複数のプロバイダーを同一プロジェクトで併用できます。
 
 ```yaml
 providers:
@@ -126,80 +80,65 @@ providers:
     type: openai
     config:
       model: gpt-4o-mini
-  
-  - id: openai_smart
-    type: openai
+
+  - id: claude
+    type: anthropic
     config:
-      model: gpt-4o
-  
-  - id: local_llm
-    type: openai
-    config:
-      model: llama2
-      base_url: http://localhost:11434/v1
+      model: claude-3-5-sonnet-latest
+      max_tokens: 2048
 
 components:
   - id: classifier
     type: llm
-    provider: openai_fast  # Fast model for classification
-  
+    provider: openai_fast
   - id: writer
     type: llm
-    provider: openai_smart  # Smart model for generation
-  
-  - id: summarizer
-    type: llm
-    provider: local_llm  # Local model for summarization
+    provider: claude
 ```
 
-## プロバイダーの戻り値形式
+## プロバイダーコンテキスト
 
-ファクトリー関数は以下を含むdictを返す必要があります：
+ファクトリーはコンポーネントファクトリーへ渡されるマッピングを返します。組み込みファクトリーでは以下の情報を提供します。
 
 ```python
 {
-    "client": client_instance,    # LLM client
-    "model": "model-name",         # Model identifier
-    "config": dict(provider.config)  # Original config
+    "client": <SDK クライアント>,
+    "model": "...",            # 解決済みモデル名
+    "config": {...},             # providers[].config のコピー
+    # OpenAI 専用:
+    "base_url": "..." or None,
+    "organization": "..." or None,
+    "timeout": float | None,
+    "max_retries": int | None,
+    "temperature": float | None,
+    # Anthropic 専用:
+    "max_tokens": int | None,
+    "temperature": float | None,
 }
 ```
 
-これによりノードは以下にアクセスできます：
-- `provider_instance["client"]` - LLMクライアント
-- `provider_instance["model"]` - モデル名
-- `provider_instance["config"]` - プロバイダー設定
+コンポーネントは必要に応じてこの情報を参照できます。
 
-## 環境変数
+## ファクトリーの上書き順序
 
-機密データには環境変数を使用します：
+`AgentEthan` は次の優先順位でファクトリーをマージします（後勝ち）。
 
-```yaml
-providers:
-  - id: openai
-    type: openai
-    config:
-      model: gpt-4o-mini
-      api_key: ${OPENAI_API_KEY}
-```
+1. `AgentEthan` コンストラクタ引数 (`provider_factories`)
+2. YAML の `runtime.factories.providers`
+3. 組み込みのデフォルト (`DEFAULT_PROVIDER_FACTORIES`)
 
-```bash
-export OPENAI_API_KEY=sk-...
-```
+独自の処理へ置き換えたい場合は、カスタムファクトリーを登録してください。詳細な手順は [プロバイダー（応用）](./providers-advanced.md) を参照してください。
 
 ## ベストプラクティス
 
-1. **環境変数を使用** - APIキーをハードコードしない
-2. **適切なタイムアウトを設定** - リクエストがハングするのを防ぐ
-3. **リトライを設定** - 一時的な障害に対処
-4. **開発にはローカルLLMを使用** - コストを削減
-5. **高速/高性能モデルを分離** - コストとレイテンシを最適化
+- 秘匿情報は YAML ではなく環境変数で管理する
+- タイムアウトとリトライを明示的に設定する
+- 同一プロバイダー ID を共有してクライアント生成を抑制する
+- 開発環境では可能な限りローカルモデルを活用する
+- 複雑な初期化が必要な場合はカスタムファクトリーに切り出す
 
-## サンプル
+## 参考資料
 
-動作するコードについては [examples/01_basic_llm/](../../examples/01_basic_llm/) を参照してください。
-
-## 次のステップ
-
-- [カスタムロジックノード](./custom_logic_node.md) について学ぶ
-- 会話管理については [チャット履歴](./chat_history.md) を参照
-- 完全な仕様については [YAMLリファレンス](./yaml_reference.md) を参照
+- [ランタイム設定](./runtime-config.md)
+- [プロバイダー（応用）](./providers-advanced.md)
+- [サンプルコード](../examples/)
