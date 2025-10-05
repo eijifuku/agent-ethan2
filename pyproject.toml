@@ -54,6 +54,8 @@ select = ["E", "F", "I", "UP", "B", "S", "C4", "PIE", "Q"]
 ignore = ["S101"]
 
 [tool.setuptools_scm]
+write_to = "agent_ethan2/_version.py"
+write_to_template = "version = \"{version}\"\n"
 version_scheme = "post-release"
 local_scheme = "no-local-version"
 fallback_version = "0.0.0"
