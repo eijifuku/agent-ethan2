@@ -25,10 +25,12 @@ async def test_openai_chat_component_uses_provider_context() -> None:
     class DummyMessage:
         def __init__(self, content: str) -> None:
             self.content = content
+            self.parsed = {"json": True}
 
     class DummyChoice:
         def __init__(self, content: str) -> None:
             self.message = DummyMessage(content)
+            self.parsed = {"legacy": True}
 
     class DummyUsage:
         def __init__(self) -> None:
@@ -76,6 +78,8 @@ async def test_openai_chat_component_uses_provider_context() -> None:
     assert captured["kwargs"]["temperature"] == pytest.approx(0.3)
     assert captured["kwargs"]["max_tokens"] == 128
     assert result["choices"][0]["text"] == "hello world"
+    assert result["choices"][0]["parsed"] == {"json": True}
+    assert result["choices"][0]["message"].parsed == {"json": True}
     assert result["usage"] == {"prompt_tokens": 10, "completion_tokens": 5}
 
 

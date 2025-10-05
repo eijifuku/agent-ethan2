@@ -47,6 +47,22 @@ def _extract_choice_text(choice: Any) -> str:
     return "" if text is None else str(text)
 
 
+def _extract_choice_parsed(choice: Any) -> Any:
+    message = getattr(choice, "message", None)
+    if message is not None:
+        parsed = getattr(message, "parsed", None)
+        if parsed is not None:
+            return parsed
+        if isinstance(message, Mapping) and "parsed" in message:
+            return message["parsed"]
+    parsed_choice = getattr(choice, "parsed", None)
+    if parsed_choice is not None:
+        return parsed_choice
+    if isinstance(choice, Mapping) and "parsed" in choice:
+        return choice["parsed"]
+    return None
+
+
 class OpenAIChatComponentFactory(ComponentFactoryBase):
     """Create an OpenAI chat completion component."""
 
@@ -121,13 +137,23 @@ class OpenAIChatComponentFactory(ComponentFactoryBase):
 
                 response = client.chat.completions.create(**kwargs)
                 choices = getattr(response, "choices", [])
-                text = _extract_choice_text(choices[0]) if choices else ""
+                choice_payloads: list[dict[str, Any]] = []
+                for choice in choices:
+                    payload: dict[str, Any] = {
+                        "text": _extract_choice_text(choice),
+                    }
+                    message = getattr(choice, "message", None)
+                    if message is not None:
+                        payload["message"] = message
+                    parsed = _extract_choice_parsed(choice)
+                    if parsed is not None:
+                        payload["parsed"] = parsed
+                    choice_payloads.append(payload)
                 usage = _serialise_usage(getattr(response, "usage", None))
-                result: Mapping[str, Any] = {
-                    "choices": [{"text": text, "message": getattr(choices[0], "message", None)}] if choices else [],
+                return {
+                    "choices": choice_payloads,
                     "usage": usage,
                 }
-                return result
 
             return await self.run_in_executor(_invoke)
 
