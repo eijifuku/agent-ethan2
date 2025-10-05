@@ -218,6 +218,145 @@ class AnthropicMessagesComponentFactory(ComponentFactoryBase):
         return call
 
 
+class GeminiChatComponentFactory(ComponentFactoryBase):
+    """Create a Gemini chat component backed by Google Generative AI."""
+
+    error_code = "ERR_COMPONENT_GEMINI_CHAT"
+
+    def build(
+        self,
+        component: NormalizedComponent,
+        provider_instance: Any,
+        tool_instance: Any,
+    ) -> Any:
+        provider_ctx = self.require_provider(component, provider_instance)
+        client = provider_ctx.get("client")
+        if client is None or not hasattr(client, "GenerativeModel"):
+            raise GraphExecutionError(
+                self.error_code,
+                "Google Generative AI client is missing from provider context",
+                pointer=self._pointer(component),
+            )
+
+        model = component.config.get("model") or provider_ctx.get("model")
+        if not model:
+            raise GraphExecutionError(
+                self.error_code,
+                "Model name is required (set component.config.model or provider config)",
+                pointer=self._pointer(component),
+            )
+
+        base_generation_config = dict(provider_ctx.get("generation_config") or {})
+
+        def update_generation(key: str, field: str, *, is_int: bool = False) -> None:
+            value = component.config.get(field)
+            if value in (None, ""):
+                return
+            if is_int:
+                coerced = self.coerce_int(component, value, field=field)
+            else:
+                coerced = self.coerce_float(component, value, field=field)
+            if coerced is not None:
+                base_generation_config[key] = coerced
+
+        update_generation("temperature", "temperature")
+        update_generation("top_p", "top_p")
+        update_generation("top_k", "top_k", is_int=True)
+        update_generation("max_output_tokens", "max_output_tokens", is_int=True)
+
+        component_stop = component.config.get("stop_sequences")
+        if component_stop is not None:
+            if isinstance(component_stop, (list, tuple)):
+                base_generation_config["stop_sequences"] = list(component_stop)
+            else:
+                raise GraphExecutionError(
+                    self.error_code,
+                    "stop_sequences must be a list",
+                    pointer=self._pointer(component),
+                )
+        elif "stop_sequences" not in base_generation_config:
+            provider_cfg = provider_ctx.get("generation_config") or {}
+            if isinstance(provider_cfg, Mapping) and provider_cfg.get("stop_sequences") is not None:
+                base_generation_config["stop_sequences"] = provider_cfg["stop_sequences"]
+
+        safety_settings = component.config.get("safety_settings") or provider_ctx.get("safety_settings")
+        system_instruction = component.config.get("system_instruction") or provider_ctx.get("system_instruction")
+
+        def format_messages(inputs: Mapping[str, Any]) -> Any:
+            messages = inputs.get("messages")
+            if isinstance(messages, list):
+                formatted: list[dict[str, Any]] = []
+                for message in messages:
+                    if not isinstance(message, Mapping):
+                        continue
+                    role = message.get("role", "user")
+                    parts = message.get("parts")
+                    if parts is None:
+                        content = message.get("content", "")
+                        if isinstance(content, list):
+                            parts = content
+                        else:
+                            parts = [content]
+                    formatted.append({"role": role, "parts": list(parts)})
+                return formatted if formatted else ""
+            prompt = inputs.get("prompt")
+            return "" if prompt is None else prompt
+
+        def extract_text(response: Any) -> str:
+            text = getattr(response, "text", None)
+            if isinstance(text, str) and text:
+                return text
+            candidates = getattr(response, "candidates", None)
+            if candidates:
+                first = candidates[0]
+                content = getattr(first, "content", None)
+                parts = getattr(content, "parts", None) if content is not None else None
+                if parts:
+                    return "".join(str(getattr(part, "text", part)) for part in parts)
+            return ""
+
+        def serialise_usage(response: Any) -> Mapping[str, Any]:
+            usage = getattr(response, "usage_metadata", None)
+            if usage is None:
+                return {}
+            data: dict[str, Any] = {}
+            prompt_tokens = getattr(usage, "prompt_token_count", None)
+            if prompt_tokens is not None:
+                data["prompt_tokens"] = prompt_tokens
+            candidates_tokens = getattr(usage, "candidates_token_count", None)
+            if candidates_tokens is not None:
+                data["candidates_tokens"] = candidates_tokens
+            total_tokens = getattr(usage, "total_token_count", None)
+            if total_tokens is not None:
+                data["total_tokens"] = total_tokens
+            return data
+
+        async def call(state: Mapping[str, Any], inputs: Mapping[str, Any], ctx: Mapping[str, Any]) -> Mapping[str, Any]:
+            content = format_messages(inputs)
+
+            def _invoke() -> Mapping[str, Any]:
+                kwargs: dict[str, Any] = {"model_name": model}
+                if base_generation_config:
+                    kwargs["generation_config"] = dict(base_generation_config)
+                if safety_settings is not None:
+                    kwargs["safety_settings"] = safety_settings
+                if system_instruction is not None:
+                    kwargs["system_instruction"] = system_instruction
+
+                model_instance = client.GenerativeModel(**kwargs)
+                response = model_instance.generate_content(content)
+                text = extract_text(response)
+                usage = serialise_usage(response)
+                return {
+                    "choices": [{"text": text}],
+                    "usage": usage,
+                }
+
+            return await self.run_in_executor(_invoke)
+
+        return call
+
+
 def create_openai_chat_component(
     component: NormalizedComponent,
     provider_instance: Any,
@@ -234,9 +373,19 @@ def create_anthropic_messages_component(
     return AnthropicMessagesComponentFactory()(component, provider_instance, tool_instance)
 
 
+def create_gemini_chat_component(
+    component: NormalizedComponent,
+    provider_instance: Any,
+    tool_instance: Any,
+) -> Any:
+    return GeminiChatComponentFactory()(component, provider_instance, tool_instance)
+
+
 __all__ = [
     "OpenAIChatComponentFactory",
     "AnthropicMessagesComponentFactory",
     "create_openai_chat_component",
     "create_anthropic_messages_component",
+    "GeminiChatComponentFactory",
+    "create_gemini_chat_component",
 ]

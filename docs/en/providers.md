@@ -10,6 +10,7 @@ AgentEthan2 ships with ready-to-use provider factories. They are automatically r
 | ------------- | ------------ | ------------ |
 | `openai`      | `agent_ethan2.providers.openai.create_openai_provider` | `api_key`, `model`, `base_url`, `organization`, `timeout`, `max_retries`, `temperature` |
 | `anthropic`   | `agent_ethan2.providers.anthropic.create_anthropic_provider` | `api_key`, `model`, `max_tokens`, `temperature` |
+| `google` / `gemini` | `agent_ethan2.providers.google.create_google_provider` | `api_key`, `model`, `temperature`, `top_p`, `top_k`, `max_output_tokens`, `stop_sequences`, `safety_settings` |
 
 The factories read configuration from `providers[].config` and fall back to well-known environment variables when the value is not present.
 
@@ -50,6 +51,12 @@ No custom factory registration is required—the default OpenAI factory will ins
 | Anthropic | `ANTHROPIC_MODEL` | Default model name |
 | Anthropic | `ANTHROPIC_MAX_TOKENS` | Completion token limit |
 | Anthropic | `ANTHROPIC_TEMPERATURE` | Sampling temperature |
+| Google | `GOOGLE_API_KEY` | API key fallback |
+| Google | `GOOGLE_MODEL` | Default model name |
+| Google | `GOOGLE_TEMPERATURE` | Sampling temperature |
+| Google | `GOOGLE_TOP_P` | Sampling top-p |
+| Google | `GOOGLE_TOP_K` | Sampling top-k |
+| Google | `GOOGLE_MAX_OUTPUT_TOKENS` | Completion token limit |
 
 Define the environment variables when you do not want to commit sensitive values to source control.
 
@@ -89,6 +96,11 @@ providers:
       model: claude-3-5-sonnet-latest
       max_tokens: 2048
 
+  - id: google_text
+    type: google
+    config:
+      model: gemini-pro
+
 components:
   - id: classifier
     type: llm
@@ -96,6 +108,10 @@ components:
   - id: writer
     type: llm
     provider: claude
+
+  - id: gemini
+    type: gemini_chat
+    provider: google_text
 ```
 
 ## Provider Context Structure
@@ -116,6 +132,10 @@ Factories return a mapping that is passed to component factories. The built-in p
     # Anthropic-only:
     "max_tokens": int | None,
     "temperature": float | None,
+    # Google-only:
+    "generation_config": {...} or None,
+    "safety_settings": [...],
+    "system_instruction": str | None,
 }
 ```
 

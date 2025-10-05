@@ -10,6 +10,7 @@ AgentEthan2 には主要プロバイダーのファクトリーが同梱され�
 | ---------------- | ---------------- | ------------- |
 | `openai`         | `agent_ethan2.providers.openai.create_openai_provider` | `api_key`, `model`, `base_url`, `organization`, `timeout`, `max_retries`, `temperature` |
 | `anthropic`      | `agent_ethan2.providers.anthropic.create_anthropic_provider` | `api_key`, `model`, `max_tokens`, `temperature` |
+| `google` / `gemini` | `agent_ethan2.providers.google.create_google_provider` | `api_key`, `model`, `temperature`, `top_p`, `top_k`, `max_output_tokens`, `stop_sequences`, `safety_settings` |
 
 ファクトリーは `providers[].config` を参照し、未指定の場合は既定の環境変数から値を補完します。
 
@@ -50,6 +51,12 @@ components:
 | Anthropic | `ANTHROPIC_MODEL` | デフォルトモデル |
 | Anthropic | `ANTHROPIC_MAX_TOKENS` | トークン上限 |
 | Anthropic | `ANTHROPIC_TEMPERATURE` | サンプリング温度 |
+| Google | `GOOGLE_API_KEY` | API キー |
+| Google | `GOOGLE_MODEL` | デフォルトモデル |
+| Google | `GOOGLE_TEMPERATURE` | サンプリング温度 |
+| Google | `GOOGLE_TOP_P` | top-p |
+| Google | `GOOGLE_TOP_K` | top-k |
+| Google | `GOOGLE_MAX_OUTPUT_TOKENS` | トークン上限 |
 
 ```bash
 export OPENAI_API_KEY=sk-...
@@ -87,6 +94,11 @@ providers:
       model: claude-3-5-sonnet-latest
       max_tokens: 2048
 
+  - id: google_text
+    type: google
+    config:
+      model: gemini-pro
+
 components:
   - id: classifier
     type: llm
@@ -94,6 +106,10 @@ components:
   - id: writer
     type: llm
     provider: claude
+
+  - id: gemini
+    type: gemini_chat
+    provider: google_text
 ```
 
 ## プロバイダーコンテキスト
@@ -114,6 +130,10 @@ components:
     # Anthropic 専用:
     "max_tokens": int | None,
     "temperature": float | None,
+    # Google 専用:
+    "generation_config": {...} または None,
+    "safety_settings": [...],
+    "system_instruction": str | None,
 }
 ```
 

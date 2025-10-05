@@ -12,6 +12,7 @@ from agent_ethan2.agent import AgentEthan
 from agent_ethan2.graph.errors import GraphExecutionError
 from agent_ethan2.ir import NormalizedProvider
 from agent_ethan2.providers.anthropic import create_anthropic_provider
+from agent_ethan2.providers.google import create_google_provider
 from agent_ethan2.providers.openai import create_openai_provider
 
 
@@ -203,6 +204,88 @@ def test_anthropic_factory_missing_key_raises(monkeypatch: pytest.MonkeyPatch) -
 
     assert exc_info.value.code == "ERR_PROVIDER_ANTHROPIC"
 
+
+
+def test_google_provider_configures_client(monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+
+    captured: dict[str, Any] = {}
+
+    module = types.ModuleType("google.generativeai")
+
+    def configure(api_key: str) -> None:
+        captured["api_key"] = api_key
+
+    module.configure = configure
+    module.GenerativeModel = lambda *args, **kwargs: None
+
+    google_pkg = types.ModuleType("google")
+    google_pkg.generativeai = module
+
+    monkeypatch.setitem(sys.modules, "google", google_pkg)
+    monkeypatch.setitem(sys.modules, "google.generativeai", module)
+
+    provider = _make_provider(
+        "google",
+        {
+            "api_key": "google-key",
+            "model": "gemini-pro",
+            "temperature": "0.2",
+            "top_k": "32",
+            "max_output_tokens": "512",
+        },
+    )
+
+    context = create_google_provider(provider)
+
+    assert captured["api_key"] == "google-key"
+    assert context["model"] == "gemini-pro"
+    assert context["generation_config"]["temperature"] == 0.2
+    assert context["generation_config"]["top_k"] == 32
+    assert context["generation_config"]["max_output_tokens"] == 512
+
+
+def test_google_provider_env_fallback(monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+
+    module = types.ModuleType("google.generativeai")
+    module.configure = lambda **_: None
+    module.GenerativeModel = lambda *args, **kwargs: None
+
+    google_pkg = types.ModuleType("google")
+    google_pkg.generativeai = module
+
+    monkeypatch.setitem(sys.modules, "google", google_pkg)
+    monkeypatch.setitem(sys.modules, "google.generativeai", module)
+
+    monkeypatch.setenv("GOOGLE_API_KEY", "env-key")
+    provider = _make_provider("google", {"model": "gemini-pro"})
+
+    context = create_google_provider(provider)
+
+    assert context["model"] == "gemini-pro"
+
+
+def test_google_provider_missing_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    import types
+
+    module = types.ModuleType("google.generativeai")
+    module.configure = lambda **_: None
+    module.GenerativeModel = lambda *args, **kwargs: None
+
+    google_pkg = types.ModuleType("google")
+    google_pkg.generativeai = module
+
+    monkeypatch.setitem(sys.modules, "google", google_pkg)
+    monkeypatch.setitem(sys.modules, "google.generativeai", module)
+    monkeypatch.delenv("GOOGLE_API_KEY", raising=False)
+
+    provider = _make_provider("google", {"model": "gemini-pro"})
+
+    with pytest.raises(GraphExecutionError) as exc_info:
+        create_google_provider(provider)
+
+    assert exc_info.value.code == "ERR_PROVIDER_GOOGLE"
 
 def test_agentethan_uses_default_provider_factories(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     called: dict[str, NormalizedProvider] = {}

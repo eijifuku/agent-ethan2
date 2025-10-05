@@ -8,6 +8,7 @@ DEFAULT_COMPONENT_FACTORIES: Mapping[str, str] = {
     "llm": "agent_ethan2.components.llm.create_openai_chat_component",
     "openai_chat": "agent_ethan2.components.llm.create_openai_chat_component",
     "anthropic_messages": "agent_ethan2.components.llm.create_anthropic_messages_component",
+    "gemini_chat": "agent_ethan2.components.llm.create_gemini_chat_component",
     "tool": "agent_ethan2.components.tool.create_tool_passthrough_component",
 }
 
